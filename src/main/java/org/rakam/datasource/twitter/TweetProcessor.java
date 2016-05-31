@@ -28,17 +28,17 @@ class TweetProcessor implements StatusListener {
     private final Classify classifier = new Classify();
     private final EventApi eventApi;
     private final EventContext eventContext;
-    private final Queue<Event> buffer;
+    private final Queue<org.rakam.client.model.Event> buffer;
     private static final int BUFFER_SIZE = 10;
 
-    public TweetProcessor() {
+    public TweetProcessor(String apiUrl, String apiKey) {
         ApiClient apiClient = new ApiClient();
-        apiClient.setBasePath("http://127.0.0.1:9999");
+        apiClient.setBasePath(apiUrl);
         eventApi = new EventApi(apiClient);
 
         buffer = new ConcurrentLinkedQueue<>();
         eventContext = new EventContext();
-        eventContext.setWriteKey("d4qurtmeffuiika2fik27nr0e2b7cikg7nhc9s91a3gbkmbh832olnjsfh20qar9");
+        eventContext.setWriteKey(apiKey);
     }
 
     @Override
@@ -51,7 +51,7 @@ class TweetProcessor implements StatusListener {
             map.put("longitude", geoLocation.getLongitude());
         }
 
-        map.put("_time", status.getCreatedAt().getTime()/ BUFFER_SIZE);
+        map.put("_time", status.getCreatedAt().getTime());
         Place place = status.getPlace();
         if(place != null) {
             map.put("country_code", place.getCountryCode());
@@ -78,21 +78,25 @@ class TweetProcessor implements StatusListener {
         map.put("language", "und".equals(status.getLang()) ? null : status.getLang());
         map.put("is_positive", classifier.isPositive(status.getText()));
 
-        Event event = new Event();
-        event.setProperties(map);
-        event.setCollection("tweet");
+        Event event = new Event()
+                .properties(map)
+                .collection("tweet");
         buffer.add(event);
 
         commitIfNecessary();
+    }
+
+    @Override
+    public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice)
+    {
     }
 
     private synchronized void commitIfNecessary() {
         int size = buffer.size();
         if (size > BUFFER_SIZE) {
             try {
-                EventList eventList = new EventList();
-                eventList.setProject("twitter");
-                eventList.setApi(eventContext);
+                EventList eventList = new EventList()
+                        .api(eventContext);
                 Event[] events = new Event[size];
                 for (int i = 0; i < size; i++) {
                     events[i] = buffer.poll();
@@ -107,36 +111,13 @@ class TweetProcessor implements StatusListener {
     }
 
     @Override
-    public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
-//        Map<String, Object> map = new HashMap<>(2);
-//        map.put("_user", statusDeletionNotice.getUserId());
-//        map.put("id", statusDeletionNotice.getStatusId());
-//
-//        Event event = new Event();
-//        event.setProperties(map);
-//        event.setCollection("delete_tweet");
-//        buffer.add(event);
-//
-//        commitIfNecessary();
-    }
-
-    @Override
     public void onTrackLimitationNotice(int limit) {
         System.out.println(1);
     }
 
     @Override
-    public void onScrubGeo(long user, long upToStatus) {
-        Map<String, Object> map = new HashMap<>(2);
-        map.put("_user", user);
-        map.put("id", upToStatus);
-
-        Event event = new Event();
-        event.setProperties(map);
-        event.setCollection("delete_tweet");
-        buffer.add(event);
-
-        commitIfNecessary();
+    public void onScrubGeo(long l, long l1)
+    {
     }
 
     @Override
