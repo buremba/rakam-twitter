@@ -1,5 +1,6 @@
 package org.rakam.datasource.twitter;
 
+import com.google.common.base.Throwables;
 import org.rakam.ApiClient;
 import org.rakam.ApiException;
 import org.rakam.client.api.EventApi;
@@ -22,20 +23,28 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 class TweetProcessor implements StatusListener {
+    private final Logger LOGGER = Logger.getLogger(TweetProcessor.class.getName());
     private final Classify classifier = new Classify();
     private final EventApi eventApi;
     private final EventContext eventContext;
     private final Queue<org.rakam.client.model.Event> buffer;
-    private static final int BUFFER_SIZE = 10;
+    private static final int BUFFER_SIZE = 50;
+    private final AtomicInteger counter;
 
-    public TweetProcessor(String apiUrl, String apiKey) {
+    public TweetProcessor(String apiUrl, String apiKey, AtomicInteger counter) {
         ApiClient apiClient = new ApiClient();
         apiClient.setBasePath(apiUrl);
         eventApi = new EventApi(apiClient);
-
+        this.counter = counter;
         buffer = new ConcurrentLinkedQueue<>();
         eventContext = new EventContext();
         eventContext.setWriteKey(apiKey);
@@ -80,7 +89,7 @@ class TweetProcessor implements StatusListener {
 
         Event event = new Event()
                 .properties(map)
-                .collection("tweet");
+                .collection("tweet13");
         buffer.add(event);
 
         commitIfNecessary();
@@ -103,16 +112,16 @@ class TweetProcessor implements StatusListener {
                 }
                 eventList.setEvents(Arrays.asList(events));
                 eventApi.batchEvents(eventList);
-                System.out.println("Sent " + size + " events");
+                counter.addAndGet(size);
             } catch (ApiException e) {
-                e.printStackTrace();
+                throw Throwables.propagate(e);
             }
         }
     }
 
     @Override
     public void onTrackLimitationNotice(int limit) {
-        System.out.println(1);
+        LOGGER.log(Level.WARNING, String.format("We hit the Twitter API limits, maximum %s can be fetched", limit));
     }
 
     @Override
@@ -122,11 +131,11 @@ class TweetProcessor implements StatusListener {
 
     @Override
     public void onStallWarning(StallWarning warning) {
-        System.out.println(1);
+        LOGGER.log(Level.WARNING, String.format("Warning while sending tweets to Rakam: %s", warning.getMessage()));
     }
 
     @Override
     public void onException(Exception e) {
-        System.out.println(1);
+        LOGGER.log(Level.SEVERE, String.format("Error while sending tweets to Rakam: %s", e.getMessage()));
     }
 }

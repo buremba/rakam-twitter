@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.twitter.hbc.ClientBuilder;
 import com.twitter.hbc.core.Constants;
+import com.twitter.hbc.core.StatsReporter;
 import com.twitter.hbc.core.endpoint.StatusesSampleEndpoint;
 import com.twitter.hbc.core.processor.StringDelimitedProcessor;
 import com.twitter.hbc.httpclient.BasicClient;
@@ -15,10 +16,21 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TwitterStreamReader
 {
+    private static final Logger LOGGER = Logger.getLogger(TwitterStreamReader.class.getName());
+
+    private static final AtomicLong total = new AtomicLong();
+    private static final AtomicInteger currentMinute = new AtomicInteger();
+
     public static void run(String rakamApi, String rakamApiKey, String twitterConsumerKey, String twitterConsumerSecret, String twitterToken, String twitterSecret)
             throws InterruptedException
     {
@@ -45,8 +57,15 @@ public class TwitterStreamReader
                 .newFixedThreadPool(nThreads);
 
         Twitter4jStatusClient t4jClient = new Twitter4jStatusClient(
-                client, queue, ImmutableList.of(new TweetProcessor(rakamApi, rakamApiKey)),
+                client, queue, ImmutableList.of(new TweetProcessor(rakamApi, rakamApiKey, currentMinute)),
                 executorService);
+
+        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        scheduledExecutorService.scheduleAtFixedRate(() -> {
+            int currentMinuteEvents = currentMinute.getAndSet(0);
+            long totalEvents = total.addAndGet(currentMinuteEvents);
+            LOGGER.info(String.format("Total: %s, Last 15 seconds: %d", totalEvents, currentMinuteEvents));
+        }, 5, 15, SECONDS);
 
         t4jClient.connect();
         for (int threads = 0; threads < nThreads; threads++) {
@@ -63,8 +82,13 @@ public class TwitterStreamReader
         }
 
         client.stop();
+        scheduledExecutorService.shutdown();
 
-        System.out.printf("The client read %d messages!\n", client.getStatsTracker().getNumMessages());
+        StatsReporter.StatsTracker statsTracker = client.getStatsTracker();
+        LOGGER.info(String.format("API Stats: \n The client read %d messages. \n Status code 200: %d, 400: %d, 500: %s \n Client dropped: %d, Failure: %d, Dropped: %d \n Connect: %d, Connection failure: %d, Disconnect: %d",
+                statsTracker.getNumMessages(), statsTracker.getNum200s(), statsTracker.getNum400s(), statsTracker.getNum500s(),
+                statsTracker.getNumClientEventsDropped(), statsTracker.getNumConnectionFailures(), statsTracker.getNumMessagesDropped(),
+                statsTracker.getNumConnects(), statsTracker.getNumConnectionFailures(), statsTracker.getNumDisconnects()));
     }
 
     public static void main(String[] args)

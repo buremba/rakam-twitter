@@ -15,6 +15,11 @@
             <version>2.2.0</version>
         </dependency>
         <dependency>
+            <groupId>de.julielab</groupId>
+            <artifactId>aliasi-lingpipe</artifactId>
+            <version>4.1.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-client</artifactId>
             <version>0.2</version>
