@@ -37,9 +37,9 @@ import java.util.logging.Logger;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public class TwitterStreamReader
+public class ServiceStarter
 {
-    private static final Logger LOGGER = Logger.getLogger(TwitterStreamReader.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(ServiceStarter.class.getName());
 
     private static final AtomicLong total = new AtomicLong();
     private static final AtomicInteger currentMinute = new AtomicInteger();
@@ -107,6 +107,6 @@ public class TwitterStreamReader
     public static void main(String[] args)
             throws InterruptedException
     {
-        TwitterStreamReader.run(args[0], args[1], args[2], args[3], args[4], args[5]);
+        ServiceStarter.run(args[0], args[1], args[2], args[3], args[4], args[5]);
     }
 }

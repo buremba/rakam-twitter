@@ -101,6 +101,12 @@
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
 
+                    <archive>
+                        <manifest>
+                            <mainClass>io.rakam.datasource.twitter.ServiceStarter</mainClass>
+                        </manifest>
+                    </archive>
+
                 </configuration>
                 <executions>
                     <execution>
