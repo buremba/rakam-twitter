@@ -14,6 +14,7 @@
 
     <properties>
         <air.check.skip-findbugs>true</air.check.skip-findbugs>
+        <dep.joda.version>2.9.3</dep.joda.version>
     </properties>
 
     <dependencies>
