@@ -10,7 +10,7 @@
 
     <groupId>io.rakam</groupId>
     <artifactId>datasource-twitter</artifactId>
-    <version>1.1</version>
+    <version>1.2-SNAPSHOT</version>
 
     <properties>
         <air.check.skip-findbugs>true</air.check.skip-findbugs>
@@ -120,8 +120,4 @@
             </plugin>
         </plugins>
     </build>
-
-  <scm>
-    <tag>1.1</tag>
-  </scm>
 </project>
