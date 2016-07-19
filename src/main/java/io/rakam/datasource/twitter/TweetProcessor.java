@@ -14,12 +14,12 @@
 package io.rakam.datasource.twitter;
 
 import com.google.common.base.Throwables;
-import org.rakam.ApiClient;
-import org.rakam.ApiException;
-import org.rakam.client.api.EventApi;
-import org.rakam.client.model.Event;
-import org.rakam.client.model.EventContext;
-import org.rakam.client.model.EventList;
+import io.rakam.ApiClient;
+import io.rakam.ApiException;
+import io.rakam.client.api.CollectApi;
+import io.rakam.client.model.Event;
+import io.rakam.client.model.EventContext;
+import io.rakam.client.model.EventList;
 import twitter4j.GeoLocation;
 import twitter4j.HashtagEntity;
 import twitter4j.Place;
@@ -32,7 +32,6 @@ import twitter4j.User;
 import twitter4j.UserMentionEntity;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -50,9 +49,9 @@ class TweetProcessor
 {
     private final Logger LOGGER = Logger.getLogger(TweetProcessor.class.getName());
     private final Classify classifier = new Classify();
-    private final EventApi eventApi;
+    private final CollectApi eventApi;
     private final EventContext eventContext;
-    private final Queue<org.rakam.client.model.Event> buffer;
+    private final Queue<Event> buffer;
     private static final long maxFlushDurationInMillis = Duration.ofSeconds(10).toMillis();
     private static LocalDateTime lastFlush;
     private final AtomicInteger counter;
@@ -62,12 +61,12 @@ class TweetProcessor
     {
         ApiClient apiClient = new ApiClient();
         apiClient.setBasePath(apiUrl);
-        eventApi = new EventApi(apiClient);
+        eventApi = new CollectApi(apiClient);
         this.counter = counter;
         this.collection = collection;
         buffer = new ConcurrentLinkedQueue<>();
         eventContext = new EventContext();
-        eventContext.setWriteKey(apiKey);
+        eventContext.apiKey(apiKey);
     }
 
     @Override

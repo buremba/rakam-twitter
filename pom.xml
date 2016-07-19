@@ -34,9 +34,9 @@
             <version>4.1.0</version>
         </dependency>
         <dependency>
-            <groupId>org.rakam</groupId>
+            <groupId>io.rakam</groupId>
             <artifactId>rakam-client</artifactId>
-            <version>0.2</version>
+            <version>0.5</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
