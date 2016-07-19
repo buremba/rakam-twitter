@@ -31,6 +31,10 @@ import twitter4j.URLEntity;
 import twitter4j.User;
 import twitter4j.UserMentionEntity;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,38 +45,45 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-class TweetProcessor implements StatusListener {
+class TweetProcessor
+        implements StatusListener
+{
     private final Logger LOGGER = Logger.getLogger(TweetProcessor.class.getName());
     private final Classify classifier = new Classify();
     private final EventApi eventApi;
     private final EventContext eventContext;
     private final Queue<org.rakam.client.model.Event> buffer;
-    private static final int BUFFER_SIZE = 50;
+    private static final long maxFlushDurationInMillis = Duration.ofSeconds(10).toMillis();
+    private static LocalDateTime lastFlush;
     private final AtomicInteger counter;
+    private final String collection;
 
-    public TweetProcessor(String apiUrl, String apiKey, AtomicInteger counter) {
+    public TweetProcessor(String apiUrl, String apiKey, AtomicInteger counter, String collection)
+    {
         ApiClient apiClient = new ApiClient();
         apiClient.setBasePath(apiUrl);
         eventApi = new EventApi(apiClient);
         this.counter = counter;
+        this.collection = collection;
         buffer = new ConcurrentLinkedQueue<>();
         eventContext = new EventContext();
         eventContext.setWriteKey(apiKey);
     }
 
     @Override
-    public void onStatus(Status status) {
+    public void onStatus(Status status)
+    {
         Map<String, Object> map = new HashMap<>();
 
         GeoLocation geoLocation = status.getGeoLocation();
-        if(geoLocation != null) {
+        if (geoLocation != null) {
             map.put("latitude", geoLocation.getLatitude());
             map.put("longitude", geoLocation.getLongitude());
         }
 
         map.put("_time", status.getCreatedAt().getTime());
         Place place = status.getPlace();
-        if(place != null) {
+        if (place != null) {
             map.put("country_code", place.getCountryCode());
             map.put("place", place.getName());
             map.put("place_type", place.getPlaceType());
@@ -90,7 +101,7 @@ class TweetProcessor implements StatusListener {
         map.put("id", status.getId());
         map.put("is_reply", status.getInReplyToUserId() > -1);
         map.put("is_retweet", status.isRetweet());
-        map.put("has_media",  status.getMediaEntities().length > 0);
+        map.put("has_media", status.getMediaEntities().length > 0);
         map.put("urls", Arrays.stream(status.getURLEntities()).map(URLEntity::getText).collect(Collectors.toList()));
         map.put("hashtags", Arrays.stream(status.getHashtagEntities()).map(HashtagEntity::getText).collect(Collectors.toList()));
         map.put("user_mentions", Arrays.stream(status.getUserMentionEntities()).map(UserMentionEntity::getText).collect(Collectors.toList()));
@@ -99,7 +110,7 @@ class TweetProcessor implements StatusListener {
 
         Event event = new Event()
                 .properties(map)
-                .collection("tweet13");
+                .collection(collection);
         buffer.add(event);
 
         commitIfNecessary();
@@ -110,27 +121,36 @@ class TweetProcessor implements StatusListener {
     {
     }
 
-    private synchronized void commitIfNecessary() {
+    private void commitIfNecessary()
+    {
         int size = buffer.size();
-        if (size > BUFFER_SIZE) {
-            try {
-                EventList eventList = new EventList()
-                        .api(eventContext);
-                Event[] events = new Event[size];
-                for (int i = 0; i < size; i++) {
-                    events[i] = buffer.poll();
+        LocalDateTime now = LocalDateTime.now();
+        if (lastFlush == null || lastFlush.until(now, ChronoUnit.MILLIS) > maxFlushDurationInMillis) {
+            synchronized (this) {
+                try {
+                    EventList eventList = new EventList()
+                            .api(eventContext);
+                    Event[] events = new Event[size];
+                    for (int i = 0; i < size; i++) {
+                        events[i] = buffer.poll();
+                    }
+                    eventList.setEvents(Arrays.asList(events));
+                    eventApi.batchEvents(eventList);
+                    counter.addAndGet(size);
                 }
-                eventList.setEvents(Arrays.asList(events));
-                eventApi.batchEvents(eventList);
-                counter.addAndGet(size);
-            } catch (ApiException e) {
-                throw Throwables.propagate(e);
+                catch (ApiException e) {
+                    throw Throwables.propagate(e);
+                }
+                finally {
+                    lastFlush = now;
+                }
             }
         }
     }
 
     @Override
-    public void onTrackLimitationNotice(int limit) {
+    public void onTrackLimitationNotice(int limit)
+    {
         LOGGER.log(Level.WARNING, String.format("We hit the Twitter API limits, maximum %s can be fetched", limit));
     }
 
@@ -140,12 +160,14 @@ class TweetProcessor implements StatusListener {
     }
 
     @Override
-    public void onStallWarning(StallWarning warning) {
+    public void onStallWarning(StallWarning warning)
+    {
         LOGGER.log(Level.WARNING, String.format("Warning while sending tweets to Rakam: %s", warning.getMessage()));
     }
 
     @Override
-    public void onException(Exception e) {
+    public void onException(Exception e)
+    {
         LOGGER.log(Level.SEVERE, String.format("Error while sending tweets to Rakam: %s", e.getMessage()));
     }
 }

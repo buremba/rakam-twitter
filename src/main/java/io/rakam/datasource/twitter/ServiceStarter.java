@@ -44,7 +44,7 @@ public class ServiceStarter
     private static final AtomicLong total = new AtomicLong();
     private static final AtomicInteger currentMinute = new AtomicInteger();
 
-    public static void run(String rakamApi, String rakamApiKey, String twitterConsumerKey, String twitterConsumerSecret, String twitterToken, String twitterSecret)
+    public static void run(String rakamApi, String rakamApiKey, String twitterConsumerKey, String twitterConsumerSecret, String twitterToken, String twitterSecret, String collection)
             throws InterruptedException
     {
         // Create an appropriately sized blocking queue
@@ -70,7 +70,7 @@ public class ServiceStarter
                 .newFixedThreadPool(nThreads);
 
         Twitter4jStatusClient t4jClient = new Twitter4jStatusClient(
-                client, queue, ImmutableList.of(new TweetProcessor(rakamApi, rakamApiKey, currentMinute)),
+                client, queue, ImmutableList.of(new TweetProcessor(rakamApi, rakamApiKey, currentMinute, collection)),
                 executorService);
 
         ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
@@ -107,6 +107,8 @@ public class ServiceStarter
     public static void main(String[] args)
             throws InterruptedException
     {
-        ServiceStarter.run(args[0], args[1], args[2], args[3], args[4], args[5]);
+        // TODO: use airlift configuration here
+        ServiceStarter.run(args[0], args[1], args[2], args[3],
+                args[4], args[5], args.length > 6 ? args[6] : "tweet");
     }
 }
