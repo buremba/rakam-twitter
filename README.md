@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/buremba/rakam-twitter.svg?branch=master)](https://travis-ci.org/rakam-io/rakam)
+[![Build Status](https://travis-ci.org/buremba/rakam-twitter.svg?branch=master)](https://travis-ci.org/buremba/rakam-twitter)
 
 Twitter Stream Consumer for Rakam Analytics
 ====================
