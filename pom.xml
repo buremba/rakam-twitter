@@ -37,7 +37,7 @@
         <dependency>
             <groupId>io.rakam</groupId>
             <artifactId>rakam-client</artifactId>
-            <version>0.5</version>
+            <version>0.7</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>

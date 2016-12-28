@@ -127,8 +127,7 @@ class TweetProcessor
         if (lastFlush == null || lastFlush.until(now, ChronoUnit.MILLIS) > maxFlushDurationInMillis) {
             synchronized (this) {
                 try {
-                    EventList eventList = new EventList()
-                            .api(eventContext);
+                    EventList eventList = new EventList().api(eventContext);
                     Event[] events = new Event[size];
                     for (int i = 0; i < size; i++) {
                         events[i] = buffer.poll();
@@ -138,7 +137,7 @@ class TweetProcessor
                     counter.addAndGet(size);
                 }
                 catch (ApiException e) {
-                    throw Throwables.propagate(e);
+                    throw new RuntimeException(e.getResponseBody());
                 }
                 finally {
                     lastFlush = now;
